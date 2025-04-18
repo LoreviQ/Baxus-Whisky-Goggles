@@ -4,6 +4,9 @@ import logging
 from rembg import remove
 import requests
 from PIL import Image
+import albumentations as A
+import cv2
+import numpy as np
 
 logger = logging.getLogger("BaxusLogger")
 
@@ -138,3 +141,68 @@ def add_backgrounds_to_images(data_directory: str, source_directory: str, backgr
                 composite.save(output_path, "PNG")
             except Exception as e:
                 logger.warning(f"Failed to create composite for {source_filename} with {bg_filename}: {e}")
+
+def augment_images(data_directory: str, source_directory: str):
+    logger.info("Augmenting images")
+
+    # Create the base directory for output images
+    output_images_base_dir = os.path.join(data_directory, "augmented_images")
+    os.makedirs(output_images_base_dir, exist_ok=True)
+
+    # Walk through all subdirectories and files in the source directory
+    for root, _, files in os.walk(source_directory):
+        for file in files:
+            if not file.endswith('.png'):
+                continue
+
+            source_path = os.path.join(root, file)
+            try:
+                # Read the image
+                image = cv2.imread(source_path, cv2.IMREAD_UNCHANGED)
+                if image is None:
+                    logger.warning(f"Failed to read image {source_path}")
+                    continue
+                
+                # Convert to RGB for Albumentations
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+                # Apply augmentation
+                augmented_image = augment_image(image)
+
+                # Generate a unique filename for the augmented image
+                base_name, ext = os.path.splitext(file)
+                n = 0
+                while True:
+                    output_filename = f"{base_name}_{n}.png"
+                    output_path = os.path.join(output_images_base_dir, output_filename)
+                    if not os.path.exists(output_path):
+                        break
+                    n += 1
+
+                # Save the augmented image
+                cv2.imwrite(output_path, augmented_image)
+                logger.info(f"Saved augmented image to {output_path}")
+
+            except Exception as e:
+                logger.warning(f"Failed to augment image {source_path}: {e}")
+
+def augment_image(image : np.ndarray) -> np.ndarray:
+    """
+    Augments a single image using albumentations.
+    Args:
+        image (np.ndarray): The input image to augment.
+    Returns:
+        np.ndarray: The augmented image.
+    """
+    # transform pipeline
+    transform = A.Compose([
+        A.Rotate(limit=15, p=0.5),  # Random rotation up to 15 degrees, with 50% probability
+        A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.05, rotate_limit=10, p=0.5), # Combined shift, scale, rotate
+        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
+        A.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1, p=0.5),
+        A.Perspective(scale=(0.05, 0.1), p=0.3), # Simulate slight perspective changes
+        A.HorizontalFlip(p=0.5),
+        # Add more augmentations as needed
+    ])
+    augmented = transform(image=image)
+    return augmented['image']

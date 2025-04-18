@@ -17,7 +17,7 @@ Usage:
 import os
 import pandas as pd
 from enum import Enum
-from .images import fetch_images, remove_image_backgrounds, add_backgrounds_to_images
+from .images import fetch_images, remove_image_backgrounds, add_backgrounds_to_images, augment_images
 
 # Define the SpiritType enum
 class SpiritType(Enum):
@@ -62,7 +62,7 @@ class DatasetLoader:
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
         self._fetch_images()
-        self._process_images()
+        self._remove_background()
         self._add_backgrounds()
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
@@ -83,9 +83,9 @@ class DatasetLoader:
         fetch_images(image_dir, self.dataset)
         self.dataset.drop(columns=['image_url'], inplace=True)
     
-    def _process_images(self):
+    def _remove_background(self):
         """
-        Processes the images by removing the white background and saving them in a new directory.
+        Removes the background from images using rembg and saves them in a new directory.
         """
         source_dir = os.path.join(self.data_folder, "source_images")
         dest_dir = os.path.join(self.data_folder, "no_bg_images")
@@ -98,3 +98,13 @@ class DatasetLoader:
         source_dir = os.path.join(self.data_folder, "no_bg_images")
         background_dir = os.path.join(self.data_folder, "bgs")
         add_backgrounds_to_images(self.data_folder, source_dir, background_dir)
+
+    def process_images(self, n=1):
+        """
+        Processes the images by applying albumentations pipeline and saving them.
+        Args:
+            n (int): The number of times to repeat the image processing. Defaults to 1.
+        """
+        source_dir = os.path.join(self.data_folder, "bg_images")
+        for i in range(n):
+            augment_images(self.data_folder, source_dir)
