@@ -19,6 +19,9 @@ def fetch_images(images_directory: str, dataframe: pd.DataFrame):
         image_url = row['image_url']
         image_id = row['id']
         image_path = os.path.join(images_directory, f"{image_id}.png")
+        if os.path.exists(image_path):
+            print(f"Image {image_id} already exists. Skipping download.")
+            continue
         try:
             response = requests.get(image_url, stream=True)
             if response.status_code == 200:
