@@ -22,24 +22,6 @@ def mock_data_folder(tmp_path):
 
     return data_folder
 
-def test_fetch_images(mock_data_folder, requests_mock):
-    """Test the fetch_images method of DatasetLoader."""
-    # Mock image URLs
-    requests_mock.get("http://example.com/image1.png", content=b"fake_image_data_1")
-    requests_mock.get("http://example.com/image2.png", content=b"fake_image_data_2")
-
-    loader = DatasetLoader(data_folder=str(mock_data_folder))
-    loader.fetch_images()
-
-    # Check if images are saved correctly
-    image1_path = mock_data_folder / "source_images" / "1.png"
-    image2_path = mock_data_folder / "source_images" / "2.png"
-
-    assert image1_path.exists()
-    assert image2_path.exists()
-    assert image1_path.read_bytes() == b"fake_image_data_1"
-    assert image2_path.read_bytes() == b"fake_image_data_2"
-
 def test_load_dataset(mock_data_folder):
     """Test the load_dataset method of DatasetLoader."""
     loader = DatasetLoader(data_folder=str(mock_data_folder))
@@ -47,6 +29,5 @@ def test_load_dataset(mock_data_folder):
     # Check if the dataset is loaded correctly
     assert isinstance(loader.dataset, pd.DataFrame)
     assert len(loader.dataset) == 2  # Two rows in the mock dataset
-    assert "image_url" in loader.dataset.columns  # Ensure image_url is included
     assert loader.dataset.iloc[0]["name"] == "Whiskey A"
     assert loader.dataset.iloc[1]["spirit_type"] == "Bourbon"

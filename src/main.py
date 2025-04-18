@@ -11,7 +11,6 @@ def main():
     logger.info("Starting application")
 
     loader = DatasetLoader()
-    loader.fetch_images()
 
 if __name__ == "__main__":
     main()

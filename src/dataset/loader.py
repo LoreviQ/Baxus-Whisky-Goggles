@@ -61,6 +61,14 @@ class DatasetLoader:
         """
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
+
+        # fetch the images
+        image_dir = os.path.join(self.data_folder, "source_images")
+        fetch_images(image_dir, self.dataset)
+        self.dataset['path'] = self.dataset.apply(
+            lambda row: os.path.join(image_dir, f"{row['id']}.png"), axis=1
+        )
+        self.dataset.drop(columns=['image_url'], inplace=True)
         
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
@@ -72,10 +80,3 @@ class DatasetLoader:
         """
         full_path = os.path.join(self.data_folder, dataset_path)
         return pd.read_csv(full_path, sep='\t')
-
-    def fetch_images(self):
-        """
-        Fetches images using the dataset and saves them in the source_images directory.
-        """
-        image_dir = os.path.join(self.data_folder, "source_images")
-        fetch_images(image_dir, self.dataset)
