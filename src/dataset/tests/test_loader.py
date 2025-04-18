@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
 from dataset.loader import DatasetLoader
-import requests_mock
 
 @pytest.fixture
 def mock_data_folder(tmp_path):
