@@ -1,4 +1,5 @@
 import pandas as pd
+import logging
 
 def fetch_images(images_directory: str, dataframe: pd.DataFrame):
     """
@@ -14,13 +15,15 @@ def fetch_images(images_directory: str, dataframe: pd.DataFrame):
     import os
     import requests
 
+    logger = logging.getLogger("BaxusLogger")
+
     os.makedirs(images_directory, exist_ok=True)
     for _, row in dataframe.iterrows():
         image_url = row['image_url']
         image_id = row['id']
         image_path = os.path.join(images_directory, f"{image_id}.png")
         if os.path.exists(image_path):
-            print(f"Image {image_id} already exists. Skipping download.")
+            logger.info(f"Image {image_id} already exists. Skipping download.")
             continue
         try:
             response = requests.get(image_url, stream=True)
@@ -29,4 +32,4 @@ def fetch_images(images_directory: str, dataframe: pd.DataFrame):
                     for chunk in response.iter_content(1024):
                         f.write(chunk)
         except Exception as e:
-            print(f"Failed to fetch image {image_id}: {e}")
+            logger.warning(f"Failed to fetch image {image_id}: {e}")
