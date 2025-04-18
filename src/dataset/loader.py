@@ -16,8 +16,8 @@ Usage:
 
 import os
 import pandas as pd
-import requests
 from enum import Enum
+from .images import fetch_images
 
 # Define the SpiritType enum
 class SpiritType(Enum):
@@ -45,55 +45,37 @@ class DatasetLoader:
 
     Attributes:
         data_folder (str): The path to the data folder containing the dataset and images.
+        dataset (pandas.DataFrame): The loaded dataset.
 
     Methods:
-        fetch_images(): Fetches images from URLs in the dataset and saves them locally.
-        load_dataset(): Loads the dataset as a pandas DataFrame, excluding the URL column.
+        fetch_images(): Fetches images from the dataset and saves them locally.
+        load_dataset(): Loads the dataset as a pandas DataFrame.
     """
 
     def __init__(self, data_folder: str = "data"):
         """
-        Initializes the DatasetLoader with the data folder path.
+        Initializes the DatasetLoader with the data folder path and loads the dataset.
 
         Args:
             data_folder (str): The path to the data folder containing the dataset and images. Defaults to 'data'.
         """
         self.data_folder = data_folder
-        self.dataset_path = os.path.join(data_folder, "dataset.tsv")
+        self.dataset = self.load_dataset()
         
+
+    def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
+        """
+        Loads the dataset as a pandas DataFrame and sets it to the dataset attribute.
+
+        Args:
+            dataset_path (str): The path to the dataset file. Defaults to 'dataset.tsv'.
+        """
+        full_path = os.path.join(self.data_folder, dataset_path)
+        return pd.read_csv(full_path, sep='\t')
 
     def fetch_images(self):
         """
-        Fetches images from the URLs in the dataset and saves them in the specified directory.
-
-        This method iterates through the dataset, retrieves each image from its URL,
-        and saves it locally with the ID as the filename.
-
-        Raises:
-            Exception: If an image cannot be fetched, an error message is printed.
+        Fetches images using the dataset and saves them in the source_images directory.
         """
         image_dir = os.path.join(self.data_folder, "source_images")
-        os.makedirs(image_dir, exist_ok=True)
-        data = pd.read_csv(self.dataset_path, sep='\t')
-        for _, row in data.iterrows():
-            image_url = row['image_url']
-            image_id = row['id']
-            image_path = os.path.join(image_dir, f"{image_id}.png")
-            try:
-                response = requests.get(image_url, stream=True)
-                if response.status_code == 200:
-                    with open(image_path, 'wb') as f:
-                        for chunk in response.iter_content(1024):
-                            f.write(chunk)
-            except Exception as e:
-                print(f"Failed to fetch image {image_id}: {e}")
-
-    def load_dataset(self):
-        """
-        Loads the dataset as a pandas DataFrame, excluding the URL column.
-
-        Returns:
-            pandas.DataFrame: The dataset without the URL column.
-        """
-        data = pd.read_csv(self.dataset_path, sep='\t')
-        return data.drop(columns=['image_url'])
+        fetch_images(image_dir, self.dataset)
