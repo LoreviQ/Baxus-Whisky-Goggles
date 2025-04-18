@@ -1,6 +1,8 @@
 import cv2
+import math
 import numpy as np
-import os
+from deskew import determine_skew
+from typing import Tuple, Union
 
 test_image = 'data/augmented_images/429_3.png'
 
@@ -30,13 +32,59 @@ def threshold(image: np.ndarray, block_size: int = 11, C: int = 2) -> np.ndarray
     binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, block_size, C)
     return binary_image
 
+def denoise(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
+    """
+    Apply Gaussian blur to reduce noise in the image.
+
+    Args:
+        image (np.ndarray): The input image.
+        kernel_size (int): Size of the Gaussian kernel. Default is 3. Must be odd and greater than 1.
+    Returns:
+        np.ndarray: The denoised image.
+    """
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+    if kernel_size <= 1:
+        kernel_size = 3
+    return cv2.medianBlur(image, kernel_size)
+
+def deskew(image: np.ndarray) -> np.ndarray:
+    """
+    Deskew the image to correct for any tilt.
+
+    Args:
+        image (np.ndarray): The input image.
+    Returns:
+        np.ndarray: The deskewed image.
+    """
+    angle = determine_skew(image)
+    return rotate(image, angle)
+
+def rotate(
+        image: np.ndarray, angle: float, background: Union[int, Tuple[int, int, int]] = (255, 255, 255)
+) -> np.ndarray:
+    old_width, old_height = image.shape[:2]
+    angle_radian = math.radians(angle)
+    width = abs(np.sin(angle_radian) * old_height) + abs(np.cos(angle_radian) * old_width)
+    height = abs(np.sin(angle_radian) * old_width) + abs(np.cos(angle_radian) * old_height)
+
+    image_center = tuple(np.array(image.shape[1::-1]) / 2)
+    rot_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+    rot_mat[1, 2] += (width - old_width) / 2
+    rot_mat[0, 2] += (height - old_height) / 2
+    return cv2.warpAffine(image, rot_mat, (int(round(height)), int(round(width))), borderValue=background)
+
 if __name__ == "__main__":
     # Example usage
     image = cv2.imread(test_image)
     if image is not None:
         gray_image = greyscale(image)
         cv2.imwrite('gray_image.png', gray_image)
-        threshold_image = threshold(gray_image)
+        denoised_image = denoise(gray_image)
+        cv2.imwrite('denoised_image.png', denoised_image)
+        threshold_image = threshold(denoised_image)
         cv2.imwrite('threshold_image.png', threshold_image)
+        deskewed_image = deskew(threshold_image)
+        cv2.imwrite('deskewed_image.png', deskewed_image)
     else:
         print(f"Error: Image not found at {test_image}")
