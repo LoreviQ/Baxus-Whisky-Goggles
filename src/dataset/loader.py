@@ -62,8 +62,6 @@ class DatasetLoader:
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
         self._fetch_images()
-        self._remove_background()
-        self._add_backgrounds()
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
         """
@@ -105,6 +103,8 @@ class DatasetLoader:
         Args:
             n (int): The number of times to repeat the image processing. Defaults to 1.
         """
+        self._remove_background()
+        self._add_backgrounds()
         source_dir = os.path.join(self.data_folder, "bg_images")
         for i in range(n):
             augment_images(self.data_folder, source_dir)
