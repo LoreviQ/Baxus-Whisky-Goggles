@@ -17,7 +17,7 @@ Usage:
 import os
 import pandas as pd
 from enum import Enum
-from .images import fetch_images
+from .images import fetch_images, remove_image_backgrounds
 
 # Define the SpiritType enum
 class SpiritType(Enum):
@@ -62,6 +62,7 @@ class DatasetLoader:
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
         self._fetch_images()
+        self._process_images()
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
         """
@@ -79,7 +80,12 @@ class DatasetLoader:
         """
         image_dir = os.path.join(self.data_folder, "source_images")
         fetch_images(image_dir, self.dataset)
-        self.dataset['path'] = self.dataset.apply(
-            lambda row: os.path.join(image_dir, f"{row['id']}.png"), axis=1
-        )
         self.dataset.drop(columns=['image_url'], inplace=True)
+    
+    def _process_images(self):
+        """
+        Processes the images by removing the white background and saving them in a new directory.
+        """
+        source_dir = os.path.join(self.data_folder, "source_images")
+        dest_dir = os.path.join(self.data_folder, "no_bg_images")
+        remove_image_backgrounds(source_dir, dest_dir)
