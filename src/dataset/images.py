@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 from rembg import remove
 import requests
+from PIL import Image
 
 logger = logging.getLogger("BaxusLogger")
 
@@ -64,3 +65,76 @@ def remove_image_backgrounds(source_directory: str, destination_directory: str):
                         output_file.write(output_data)
             except Exception as e:
                 logger.warning(f"Failed to process image {filename}: {e}")
+
+def add_backgrounds_to_images(data_directory: str, source_directory: str, background_directory: str):
+    """
+    Adds backgrounds to images with transparent backgrounds.
+
+    Args:
+        data_directory (str): The base directory to save the composite images.
+        source_directory (str): Directory containing images with transparent backgrounds.
+        background_directory (str): Directory containing background images.
+    """
+    logger.info("Adding backgrounds to images")
+
+    # Create the base directory for background images
+    bg_images_base_dir = os.path.join(data_directory, "bg_images")
+    os.makedirs(bg_images_base_dir, exist_ok=True)
+
+    # Iterate over each background image
+    for bg_filename in os.listdir(background_directory):
+        bg_path = os.path.join(background_directory, bg_filename)
+        if not os.path.isfile(bg_path):
+            continue
+
+        # Create a directory for the current background
+        bg_output_dir = os.path.join(bg_images_base_dir, os.path.splitext(bg_filename)[0])
+        os.makedirs(bg_output_dir, exist_ok=True)
+
+        # Open the background image
+        try:
+            background = Image.open(bg_path)
+        except Exception as e:
+            logger.warning(f"Failed to open background {bg_filename}: {e}")
+            continue
+
+        # Iterate over each source image
+        for source_filename in os.listdir(source_directory):
+            source_path = os.path.join(source_directory, source_filename)
+            output_path = os.path.join(bg_output_dir, source_filename)
+
+            # Skip processing if the composite image already exists
+            if os.path.exists(output_path):
+                logger.info(f"Composite image {output_path} already exists. Skipping.")
+                continue
+
+            if not source_filename.endswith('.png') or not os.path.isfile(source_path):
+                continue
+
+            # Open the source image
+            try:
+                source_image = Image.open(source_path).convert("RGBA")
+            except Exception as e:
+                logger.warning(f"Failed to open source image {source_filename}: {e}")
+                continue
+
+            # Resize the background to match the source image height
+            try:
+                bg_width, bg_height = background.size
+                src_width, src_height = source_image.size
+                new_bg_width = int(bg_width * (src_height / bg_height))
+                resized_background = background.resize((new_bg_width, src_height))
+            except Exception as e:
+                logger.warning(f"Failed to resize background {bg_filename} for {source_filename}: {e}")
+                continue
+
+            # Composite the source image on top of the background
+            try:
+                composite = Image.new("RGBA", (src_width, src_height))
+                composite.paste(resized_background, (0, 0))
+                composite.paste(source_image, (0, 0), source_image)
+
+                # Save the composite image
+                composite.save(output_path, "PNG")
+            except Exception as e:
+                logger.warning(f"Failed to create composite for {source_filename} with {bg_filename}: {e}")
