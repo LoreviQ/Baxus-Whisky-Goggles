@@ -1,7 +1,7 @@
 from PIL import Image
 import pytesseract
 
-image_path = 'data/source_images/144.png'
+image_path = 'data/source_images/429.png'
 
 try:
     img = Image.open(image_path)

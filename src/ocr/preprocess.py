@@ -4,16 +4,13 @@ import numpy as np
 from deskew import determine_skew
 from typing import Tuple, Union
 
-test_image = 'data/augmented_images/429_3.png'
-
+test_image = 'data/source_images/53003.png'
 
 def greyscale(image: np.ndarray) -> np.ndarray:
     """
     Convert an image to grayscale.
     """
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-# upscale TDOD
 
 def threshold(image: np.ndarray, block_size: int = 11, C: int = 2) -> np.ndarray:
     """
@@ -74,17 +71,28 @@ def rotate(
     rot_mat[0, 2] += (height - old_height) / 2
     return cv2.warpAffine(image, rot_mat, (int(round(height)), int(round(width))), borderValue=background)
 
+# potential future processing steps
+# Advanced Adaptive Thresholding (varying params)
+# Lighting Normalization
+# rembg
+# glare removal
+# curvature correction
+# italics
+# edge detection
+
 if __name__ == "__main__":
     # Example usage
     image = cv2.imread(test_image)
     if image is not None:
-        gray_image = greyscale(image)
-        cv2.imwrite('gray_image.png', gray_image)
-        denoised_image = denoise(gray_image)
-        cv2.imwrite('denoised_image.png', denoised_image)
-        threshold_image = threshold(denoised_image)
-        cv2.imwrite('threshold_image.png', threshold_image)
-        deskewed_image = deskew(threshold_image)
-        cv2.imwrite('deskewed_image.png', deskewed_image)
+        image = greyscale(image)
+        cv2.imwrite('gray_image.png', image)
+        image = denoise(image)
+        cv2.imwrite('denoised_image.png', image)
+        image = deskew(image)
+        cv2.imwrite('deskewed_image.png', image)
+        image = threshold(image)
+        cv2.imwrite('threshold_image.png', image)
+        cv2.flip(image, 1, image)
+        cv2.imwrite('flip_image.png', image)
     else:
         print(f"Error: Image not found at {test_image}")
