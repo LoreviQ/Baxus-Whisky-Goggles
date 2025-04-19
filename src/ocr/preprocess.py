@@ -79,20 +79,3 @@ def rotate(
 # curvature correction
 # italics
 # edge detection
-
-if __name__ == "__main__":
-    # Example usage
-    image = cv2.imread(test_image)
-    if image is not None:
-        image = greyscale(image)
-        cv2.imwrite('gray_image.png', image)
-        image = denoise(image)
-        cv2.imwrite('denoised_image.png', image)
-        image = deskew(image)
-        cv2.imwrite('deskewed_image.png', image)
-        image = threshold(image)
-        cv2.imwrite('threshold_image.png', image)
-        cv2.flip(image, 1, image)
-        cv2.imwrite('flip_image.png', image)
-    else:
-        print(f"Error: Image not found at {test_image}")
