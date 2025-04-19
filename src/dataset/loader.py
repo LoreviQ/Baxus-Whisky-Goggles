@@ -62,6 +62,7 @@ class DatasetLoader:
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
         self._fetch_images()
+        self.OCR_data = self.dataset[['name', 'size', 'proof', 'abv', 'spirit_type']].copy()
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
         """
@@ -108,3 +109,11 @@ class DatasetLoader:
         source_dir = os.path.join(self.data_folder, "bg_images")
         for i in range(n):
             augment_images(self.data_folder, source_dir)
+        
+    def process_ocr_data(self):
+        for col in ['size_ml', 'proof', 'abv']:
+            if col in self.OCR_data.columns:
+                self.OCR_data[col] = pd.to_numeric(self.OCR_data[col], errors='coerce')
+        for col in ['name', 'spirit_type']:
+            if col in self.OCR_data.columns:
+                self.OCR_data[col] = self.OCR_data[col].astype(str).str.lower()
