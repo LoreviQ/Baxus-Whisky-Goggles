@@ -18,6 +18,7 @@ import os
 import pandas as pd
 from enum import Enum
 from .images import fetch_images, remove_image_backgrounds, add_backgrounds_to_images, augment_images
+from .fuzzymatch import find_best_matches
 
 # Define the SpiritType enum
 class SpiritType(Enum):
@@ -62,7 +63,7 @@ class DatasetLoader:
         self.data_folder = data_folder
         self.dataset = self.load_dataset()
         self._fetch_images()
-        self.OCR_data = self.dataset[['name', 'size', 'proof', 'abv', 'spirit_type']].copy()
+        self.OCR_data = self.dataset[['id', 'name', 'size', 'proof', 'abv', 'spirit_type']].copy()
 
     def load_dataset(self, dataset_path: str = "dataset.tsv") -> pd.DataFrame:
         """
@@ -111,9 +112,44 @@ class DatasetLoader:
             augment_images(self.data_folder, source_dir)
         
     def process_ocr_data(self):
-        for col in ['size_ml', 'proof', 'abv']:
+        for col in ['id', 'size_ml', 'proof', 'abv']:
             if col in self.OCR_data.columns:
                 self.OCR_data[col] = pd.to_numeric(self.OCR_data[col], errors='coerce')
         for col in ['name', 'spirit_type']:
             if col in self.OCR_data.columns:
                 self.OCR_data[col] = self.OCR_data[col].astype(str).str.lower()
+
+    def get_best_matches(self, ocr_text: str, limit: int = 5) -> pd.DataFrame:
+        """
+        Finds the best matching rows in the DataFrame for a given OCR text string
+        using fuzzy matching on text columns and returns the matched rows with scores.
+
+        Args:
+            ocr_text (str): The text extracted from OCR.
+            limit (int): The maximum number of matches to return. Defaults to 5.
+
+        Returns:
+            pd.DataFrame: A DataFrame containing the best matching rows from the
+                          original dataset, with an added 'score' column.
+                          Returns an empty DataFrame if no matches are found.
+        """
+        matches = find_best_matches(ocr_text, self.OCR_data, limit)
+        
+        if not matches:
+            # Return an empty DataFrame with original columns + score
+            return pd.DataFrame(columns=list(self.dataset.columns) + ['score'])
+
+        # Extract IDs and scores
+        match_ids = [match[0] for match in matches]
+        scores_map = {match[0]: match[1] for match in matches}
+
+        # Filter the original dataset based on matched IDs
+        filtered_df = self.dataset[self.dataset['id'].isin(match_ids)].copy()
+
+        # Add the score column
+        filtered_df['score'] = filtered_df['id'].map(scores_map)
+
+        # Sort the DataFrame by score in descending order
+        filtered_df.sort_values(by='score', ascending=False, inplace=True)
+
+        return filtered_df

@@ -13,5 +13,10 @@ def main():
     loader = DatasetLoader()
     loader.process_ocr_data()
 
+    test_string = "h—_~\n\nJEFFERSONS\n\nKENTUCKY STRAIGHT\nBOBRBON WHISKEY\nVERYSSMALL BATCH\n\n41:15% ALGI/VOL (823 PROOF)"
+    matches = loader.get_best_matches(test_string)
+    print(matches)
+
+
 if __name__ == "__main__":
     main()
