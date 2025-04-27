@@ -11,9 +11,7 @@ def main():
     logger.info("Starting application")
 
     loader = DatasetLoader()
-    print(loader.OCR_data.head())
     loader.process_ocr_data()
-    print(loader.OCR_data.head())
 
 if __name__ == "__main__":
     main()

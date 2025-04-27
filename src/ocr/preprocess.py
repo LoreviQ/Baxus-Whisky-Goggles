@@ -12,7 +12,7 @@ def greyscale(image: np.ndarray) -> np.ndarray:
     """
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-def threshold(image: np.ndarray, block_size: int = 11, C: int = 2) -> np.ndarray:
+def threshold(image: np.ndarray, block_size: int = 111, C: int = -3) -> np.ndarray:
     """
     Apply adaptive Gaussian thresholding to an image.
 
@@ -24,9 +24,7 @@ def threshold(image: np.ndarray, block_size: int = 11, C: int = 2) -> np.ndarray
     Returns:
         np.ndarray: The binary image after applying adaptive thresholding.
     """
-    # Blurring before adaptive thresholding can sometimes reduce noise artifacts
-    # blurred_image = cv2.medianBlur(gray_image, 3) 
-    binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, block_size, C)
+    binary_image = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block_size, C)
     return binary_image
 
 def denoise(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
@@ -44,6 +42,20 @@ def denoise(image: np.ndarray, kernel_size: int = 3) -> np.ndarray:
     if kernel_size <= 1:
         kernel_size = 3
     return cv2.medianBlur(image, kernel_size)
+
+def denoise_nlm(image: np.ndarray, h: float = 10.0, 
+                 templateWindowSize: int = 7, searchWindowSize: int = 21) -> np.ndarray:
+      """Apply Non-Local Means Denoising."""
+      # Ensure image is uint8, required by NLM
+      if image.dtype != np.uint8:
+           # Basic scaling assuming input might be float 0-1 or other ranges
+          if image.max() <= 1.0 and image.min() >= 0.0:
+              image = (image * 255).astype(np.uint8)
+          else:
+              # Perform robust normalization if needed, or just cast
+              image = np.clip(image, 0, 255).astype(np.uint8)
+
+      return cv2.fastNlMeansDenoising(image, None, h, templateWindowSize, searchWindowSize)
 
 def deskew(image: np.ndarray) -> np.ndarray:
     """

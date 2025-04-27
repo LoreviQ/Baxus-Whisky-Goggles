@@ -1,20 +1,21 @@
 import numpy as np
 import pytesseract
-from preprocess import greyscale, threshold, denoise, deskew
+from preprocess import greyscale, threshold, denoise, deskew, denoise_nlm
 import cv2
 from typing import Tuple
 import os
 import csv
 
-def process_images(source_dir: str, processed_dir: str, output_csv: str):
+def process_images(source_dir: str, processed_dir: str, output_csv: str, intensive: bool = False) -> None:
     """
     Iterates over images in source_dir, processes them, saves the processed
     image to processed_dir, and saves extracted text to a CSV file.
 
     Args:
-        source_dir (str): Path to the directory containing source images.
-        processed_dir (str): Path to the directory to save processed images.
-        output_csv (str): Path to the output CSV file for extracted text.
+        source_dir (str):       Path to the directory containing source images.
+        processed_dir (str):    Path to the directory to save processed images.
+        output_csv (str):       Path to the output CSV file for extracted text.
+        intensive (bool):      If True, applies intensive processing.
     """
     if not os.path.exists(processed_dir):
         os.makedirs(processed_dir)
@@ -35,7 +36,8 @@ def process_images(source_dir: str, processed_dir: str, output_csv: str):
                 continue
 
             try:
-                processed_image, extracted_text = process_and_extract(image)
+                processed_image = preprocess_image(image, intensive)
+                extracted_text = extract_text_from_image(processed_image)
                 cv2.imwrite(processed_path, processed_image)
                 csv_safe_text = extracted_text.strip().replace('\n', '\\n')
                 results.append([filename, csv_safe_text])
@@ -55,7 +57,7 @@ def process_images(source_dir: str, processed_dir: str, output_csv: str):
         print(f"Error writing CSV file: {e}")
 
 
-def process_and_extract(image: np.ndarray) -> Tuple[np.ndarray, str]:
+def preprocess_image(image: np.ndarray, intensive: bool = False) -> np.ndarray:
     """
     Process the image and extract text using Tesseract OCR.
     Args:
@@ -64,11 +66,11 @@ def process_and_extract(image: np.ndarray) -> Tuple[np.ndarray, str]:
         str: The extracted text.
     """
     image = greyscale(image)
-    image = denoise(image)
-    image = deskew(image)
-    image = threshold(image)
-    text = extract_text_from_image(image)
-    return image, text
+    if intensive:
+        from upscale import upscale
+        image = upscale(image)
+    image = denoise_nlm(image)
+    return deskew(image)
 
 def extract_text_from_image(image: np.ndarray) -> str:
     """
@@ -84,9 +86,7 @@ def extract_text_from_image(image: np.ndarray) -> str:
     return pytesseract.image_to_string(image, config=pytesseract_config)
     
 if __name__ == "__main__":
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) # Assumes script is in src/ocr
-    source_images_dir = os.path.join(base_dir, 'data', 'source_images')
-    processed_images_dir = os.path.join(base_dir, 'data', 'processed_images')
-    extracted_text_csv = os.path.join(base_dir, 'data', 'extracted_text.csv')
-
-    process_images(source_images_dir, processed_images_dir, extracted_text_csv)
+    source_dir = "data/upscaled_images"
+    processed_dir = "data/processed_images"
+    output_csv = "data/extracted_text.csv"
+    process_images(source_dir, processed_dir, output_csv)
