@@ -18,12 +18,65 @@ class ImageClassifier:
         """
         self.dataset_path = dataset_path
         self.pickle_path = pickle_path
-        self.config = config
-        self.dataset = self._load_data()
+        self._load_data(config)
+        self._load_model()
+        self._set_classifier()
 
-    def _load_data(self):
+    def _load_data(self, config):
+        # Load the dataset
         initial_transform = transforms.Compose([])
-        return ImageFolder(root=self.dataset_path, transform=initial_transform)
+        self.dataset = ImageFolder(root=self.dataset_path, transform=initial_transform)
+
+        # Build loaders for training and validation
+        self.train_loader = DataLoader(
+            self.dataset,
+            batch_size=config["batch_size"],
+            shuffle=config["shuffle"],
+            num_workers=config["num_workers"],
+            pin_memory=config["pin_memory"],
+        )
+        self.val_loader = DataLoader(
+            self.dataset,
+            batch_size=config["batch_size"],
+            shuffle=False,
+            num_workers=config["num_workers"],
+            pin_memory=config["pin_memory"],
+        )
+
+    def _load_model(self):
+        # Load the model
+        model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
+        num_ftrs = model.classifier.in_features
+        model.classifier = torch.nn.Linear(num_ftrs, NUM_CLASSES)
+
+        # Freeze pre-trained layers, unfreeze the classifier
+        for param in model.parameters():
+            param.requires_grad = False
+        for param in model.classifier.parameters():
+            param.requires_grad = True
+
+        # Move model to GPU if available
+        self.model = model.to(
+            torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        )
+
+    def _set_classifier(self):
+        # set loss function
+        self.criterion = torch.nn.CrossEntropyLoss()
+
+        # set optimizer
+        params_to_update = []
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                params_to_update.append(param)
+        self.optimizer = torch.optim.AdamW(
+            params_to_update, lr=0.001, weight_decay=0.01
+        )
+
+        # set learning rate scheduler
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+            self.optimizer, step_size=7, gamma=0.1
+        )
 
     def save_class_mapping(self):
         """
@@ -63,45 +116,3 @@ class ImageClassifier:
             ]
         )
         self.dataset.transform = augment_transform
-
-    def train(self):
-        # Load the dataset
-        train_loader = DataLoader(
-            self.dataset,
-            batch_size=self.config["batch_size"],
-            shuffle=self.config["shuffle"],
-            num_workers=self.config["num_workers"],
-            pin_memory=self.config["pin_memory"],
-        )
-
-        # Load the model
-        model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
-        num_ftrs = model.classifier.in_features
-        model.classifier = torch.nn.Linear(num_ftrs, NUM_CLASSES)
-
-        # Freeze pre-trained layers, unfreeze the classifier
-        for param in model.parameters():
-            param.requires_grad = False
-        for param in model.classifier.parameters():
-            param.requires_grad = True
-
-        # Move model to GPU if available
-        model = model.to(torch.device("cuda:0" if torch.cuda.is_available() else "cpu"))
-
-        # loss function and optimizer
-        criterion = torch.nn.CrossEntropyLoss()
-        params_to_update = []
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                params_to_update.append(param)
-        optimizer = torch.optim.AdamW(params_to_update, lr=0.001, weight_decay=0.01)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-
-    def validate(self):
-        val_loader = DataLoader(
-            self.dataset,
-            batch_size=self.config["batch_size"],
-            shuffle=False,
-            num_workers=self.config["num_workers"],
-            pin_memory=self.config["pin_memory"],
-        )
