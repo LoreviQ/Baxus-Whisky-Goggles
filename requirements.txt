@@ -19,3 +19,4 @@ mypy
 pytest
 pytest-mypy
 requests-mock
+matplotlib
