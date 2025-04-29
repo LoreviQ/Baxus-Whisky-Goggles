@@ -184,6 +184,10 @@ def main():
     app = Flask(__name__)
     CORS(app)
 
+    @app.route("/")
+    def health_check():
+        return "", 200
+
     @app.route("/predict", methods=["POST"])
     def handle_predict():
         logger.info("Received request for /predict")
