@@ -12,6 +12,8 @@ pickle_path = os.path.join(os.path.dirname(__file__), "..", "data", "mapping_dat
 model_path = os.path.join(
     os.path.dirname(__file__), "..", "models", "whiskey_goggles.pth"
 )
+# For testing
+predict_path = os.path.join(os.path.dirname(__file__), "..", "data", "augmented_images")
 
 
 def train():
@@ -26,11 +28,32 @@ def validate():
     image_classifier.validate()
 
 
+def predict(filename):
+    # Pass the trained model to the ImageClassifier
+    image_classifier = ImageClassifier(dataset_path, pickle_path, model_path)
+    results = image_classifier.predict(os.path.join(predict_path, filename))
+    print(results)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Baxus Whisky Goggles")
     parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
+    parser.add_argument("--validate", action="store_true", help="Validate the model")
+    parser.add_argument(
+        "--predict", action="store_true", help="Predict using the model"
+    )
     args = parser.parse_args()
 
     logger = setup_logger(args.verbose)
     logger.info("Starting application")
-    validate()
+    if args.validate:
+        logger.info("Validating the model")
+        validate()
+    elif args.predict:
+        predict("4510_3.png")
+        predict("17446_2.png")
+        predict("18004_0.png")
+        predict("53003_1.png")
+    else:
+        logger.info("Training the model")
+        train()

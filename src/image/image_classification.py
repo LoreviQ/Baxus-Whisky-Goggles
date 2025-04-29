@@ -5,6 +5,7 @@ import torchvision.models as models
 import pickle
 import torch
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 import os
 import time
@@ -19,6 +20,7 @@ from sklearn.metrics import (
     confusion_matrix,
     ConfusionMatrixDisplay,
 )
+from PIL import Image
 
 # --- Configuration ---
 DEFAULTS = {
@@ -489,6 +491,72 @@ class ImageClassifier:
         except Exception as e:
             logger.error(f"Could not generate or save confusion matrix plot: {e}")
         logger.info("Validation finished.")
+
+    def predict(self, image_path, top_k=5):
+        """
+        Identifies the bottle in a single image.
+
+        Args:
+            image_path (str): Path to the input image file.
+            top_k (int): Number of top predictions to return.
+
+        Returns:
+            list: A list of dictionaries [{'bottle_id': str, 'score': float},...],
+                  or None if an error occurs.
+        """
+        if not hasattr(self, "model") or not hasattr(self, "val_transforms"):
+            logger.error("Model or transforms not initialized. Cannot predict.")
+            return None
+
+        # Load class mapping (needed to translate index to bottle ID)
+        _, idx_to_class = self.load_class_mapping()
+        if not idx_to_class:
+            logger.error("Failed to load class mapping. Cannot identify.")
+            return None
+
+        # Set model to evaluation mode
+        self.model.eval()
+
+        try:
+            # 1. Load and Preprocess Image
+            img = Image.open(image_path)
+            img_tensor = self.val_transforms(img)
+            img_tensor = img_tensor.unsqueeze(0)
+            img_tensor = img_tensor.to(self.device)
+
+            # 2. Make Prediction
+            with torch.no_grad():
+                outputs = self.model(img_tensor)
+
+            # 3. Get Probabilities and Rank
+            probabilities = F.softmax(outputs, dim=1)
+
+            # Get top K probabilities and their indices
+            top_prob, top_indices = torch.topk(probabilities, top_k)
+
+            # Squeeze the batch dimension
+            top_prob_squeezed = top_prob.squeeze(0)
+            top_indices_squeezed = top_indices.squeeze(0)
+
+            # 4. Format Results
+            results = []
+            for i in range(top_k):
+                class_idx = top_indices_squeezed[i].item()
+                bottle_id = idx_to_class.get(class_idx, f"Unknown Index {class_idx}")
+                score = top_prob_squeezed[i].item()
+                results.append({"bottle_id": bottle_id, "score": score})
+
+            logger.info(
+                f"Identified top {top_k} predictions for {os.path.basename(image_path)}"
+            )
+            return results
+
+        except FileNotFoundError:
+            logger.error(f"Image file not found: {image_path}")
+            return None
+        except Exception as e:
+            logger.error(f"Error identifying image {image_path}: {e}")
+            return None
 
 
 # --- Plotting Function (Outside the class) ---
