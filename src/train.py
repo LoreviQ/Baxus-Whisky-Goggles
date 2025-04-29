@@ -6,6 +6,7 @@ import os
 import argparse
 from utils.logger import setup_logger
 from image.image_classification import ImageClassifier, plot_accuracy
+from PIL import Image
 
 dataset_path = os.path.join(os.path.dirname(__file__), "..", "data", "training_images")
 pickle_path = os.path.join(os.path.dirname(__file__), "..", "data", "mapping_data.pkl")
@@ -31,7 +32,8 @@ def validate():
 def predict(filename):
     # Pass the trained model to the ImageClassifier
     image_classifier = ImageClassifier(dataset_path, pickle_path, model_path)
-    results = image_classifier.predict(os.path.join(predict_path, filename))
+    image = Image.open(os.path.join(predict_path, filename))
+    results = image_classifier.predict(image)
     print(results)
 
 
@@ -50,6 +52,7 @@ if __name__ == "__main__":
         logger.info("Validating the model")
         validate()
     elif args.predict:
+
         predict("53003_1.png")
     else:
         logger.info("Training the model")

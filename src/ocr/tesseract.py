@@ -1,12 +1,14 @@
 import numpy as np
 import pytesseract
-from preprocess import greyscale, threshold, denoise, deskew, denoise_nlm
+from .preprocess import greyscale, deskew, denoise_nlm
 import cv2
-from typing import Tuple
 import os
 import csv
 
-def process_images(source_dir: str, processed_dir: str, output_csv: str, intensive: bool = False) -> None:
+
+def process_images(
+    source_dir: str, processed_dir: str, output_csv: str, intensive: bool = False
+) -> None:
     """
     Iterates over images in source_dir, processes them, saves the processed
     image to processed_dir, and saves extracted text to a CSV file.
@@ -21,7 +23,7 @@ def process_images(source_dir: str, processed_dir: str, output_csv: str, intensi
         os.makedirs(processed_dir)
 
     results = []
-    image_extensions = ('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif')
+    image_extensions = (".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".gif")
 
     print(f"Processing images from: {source_dir}")
     for filename in os.listdir(source_dir):
@@ -39,7 +41,7 @@ def process_images(source_dir: str, processed_dir: str, output_csv: str, intensi
                 processed_image = preprocess_image(image, intensive)
                 extracted_text = extract_text_from_image(processed_image)
                 cv2.imwrite(processed_path, processed_image)
-                csv_safe_text = extracted_text.strip().replace('\n', '\\n')
+                csv_safe_text = extracted_text.strip().replace("\n", "\\n")
                 results.append([filename, csv_safe_text])
                 print(f"    Saved processed image to {processed_path}")
                 print(f"    Extracted text: '{extracted_text[:50].strip()}...'")
@@ -48,9 +50,9 @@ def process_images(source_dir: str, processed_dir: str, output_csv: str, intensi
 
     print(f"\nSaving extracted text to: {output_csv}")
     try:
-        with open(output_csv, 'w', newline='', encoding='utf-8') as csvfile:
+        with open(output_csv, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(['filename', 'text'])  # Write header
+            writer.writerow(["filename", "text"])  # Write header
             writer.writerows(results)
         print("CSV file saved successfully.")
     except IOError as e:
@@ -67,10 +69,12 @@ def preprocess_image(image: np.ndarray, intensive: bool = False) -> np.ndarray:
     """
     image = greyscale(image)
     if intensive:
-        from upscale import upscale
+        from .upscale import upscale
+
         image = upscale(image)
     image = denoise_nlm(image)
     return deskew(image)
+
 
 def extract_text_from_image(image: np.ndarray) -> str:
     """
@@ -82,9 +86,10 @@ def extract_text_from_image(image: np.ndarray) -> str:
     Returns:
         str: The extracted text.
     """
-    pytesseract_config = r'--psm 4'
+    pytesseract_config = r"--psm 4"
     return pytesseract.image_to_string(image, config=pytesseract_config)
-    
+
+
 if __name__ == "__main__":
     source_dir = "data/upscaled_images"
     processed_dir = "data/processed_images"

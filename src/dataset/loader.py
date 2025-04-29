@@ -129,7 +129,7 @@ class DatasetLoader:
             if col in self.OCR_data.columns:
                 self.OCR_data[col] = self.OCR_data[col].astype(str).str.lower()
 
-    def get_best_matches(self, ocr_text: str, limit: int = 5) -> pd.DataFrame:
+    def get_best_matches(self, ocr_text: str) -> pd.DataFrame:
         """
         Finds the best matching rows in the DataFrame for a given OCR text string
         using fuzzy matching on text columns and returns the matched rows with scores.
@@ -143,7 +143,7 @@ class DatasetLoader:
                           original dataset, with an added 'ocr_score' column.
                           Returns an empty DataFrame if no matches are found.
         """
-        matches = find_best_matches(ocr_text, self.OCR_data, limit)
+        matches = find_best_matches(ocr_text, self.OCR_data)
 
         if not matches:
             # Return an empty DataFrame with original columns + score

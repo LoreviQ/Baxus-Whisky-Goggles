@@ -20,7 +20,7 @@ from sklearn.metrics import (
     confusion_matrix,
     ConfusionMatrixDisplay,
 )
-from PIL import Image
+
 
 # --- Configuration ---
 DEFAULTS = {
@@ -492,12 +492,12 @@ class ImageClassifier:
             logger.error(f"Could not generate or save confusion matrix plot: {e}")
         logger.info("Validation finished.")
 
-    def predict(self, image_path):
+    def predict(self, image):
         """
         Identifies the bottle in a single image.
 
         Args:
-            image_path (str): Path to the input image file.
+            image (np.ndarray): input image file.
             top_k (int): Number of top predictions to return.
 
         Returns:
@@ -518,8 +518,7 @@ class ImageClassifier:
 
         try:
             # 1. Load and Preprocess Image
-            img = Image.open(image_path)
-            img_tensor = self.val_transforms(img)
+            img_tensor = self.val_transforms(image)
             img_tensor = img_tensor.unsqueeze(0)
             img_tensor = img_tensor.to(self.device)
 
@@ -541,16 +540,10 @@ class ImageClassifier:
                     "image_score": scores,
                 }
             )
-            logger.info(
-                f"Generated scores for all {num_classes} classes for {os.path.basename(image_path)}"
-            )
+            logger.info(f"Generated scores for all {num_classes} classes")
             return results_df
-
-        except FileNotFoundError:
-            logger.error(f"Image file not found: {image_path}")
-            return None
         except Exception as e:
-            logger.error(f"Error identifying image {image_path}: {e}")
+            logger.error(f"Error identifying image: {e}")
             return None
 
 
