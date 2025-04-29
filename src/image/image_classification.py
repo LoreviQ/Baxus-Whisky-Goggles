@@ -492,7 +492,7 @@ class ImageClassifier:
             logger.error(f"Could not generate or save confusion matrix plot: {e}")
         logger.info("Validation finished.")
 
-    def predict(self, image_path, top_k=5):
+    def predict(self, image_path):
         """
         Identifies the bottle in a single image.
 
@@ -509,12 +509,11 @@ class ImageClassifier:
             return None
 
         # Load class mapping (needed to translate index to bottle ID)
-        _, idx_to_class = self.load_class_mapping()
+        class_to_idx, idx_to_class = self.load_class_mapping()
         if not idx_to_class:
             logger.error("Failed to load class mapping. Cannot identify.")
             return None
-
-        # Set model to evaluation mode
+        num_classes = len(class_to_idx)
         self.model.eval()
 
         try:
@@ -530,26 +529,22 @@ class ImageClassifier:
 
             # 3. Get Probabilities and Rank
             probabilities = F.softmax(outputs, dim=1)
-
-            # Get top K probabilities and their indices
-            top_prob, top_indices = torch.topk(probabilities, top_k)
-
-            # Squeeze the batch dimension
-            top_prob_squeezed = top_prob.squeeze(0)
-            top_indices_squeezed = top_indices.squeeze(0)
+            scores = probabilities.squeeze(0).cpu().tolist()
 
             # 4. Format Results
-            results = []
-            for i in range(top_k):
-                class_idx = top_indices_squeezed[i].item()
-                bottle_id = idx_to_class.get(class_idx, f"Unknown Index {class_idx}")
-                score = top_prob_squeezed[i].item()
-                results.append({"bottle_id": bottle_id, "score": score})
-
-            logger.info(
-                f"Identified top {top_k} predictions for {os.path.basename(image_path)}"
+            bottle_ids = [
+                idx_to_class.get(i, f"Unknown Index {i}") for i in range(num_classes)
+            ]
+            results_df = pd.DataFrame(
+                {
+                    "id": bottle_ids,  # Use 'id' to match your OCR DataFrame column name
+                    "image_score": scores,
+                }
             )
-            return results
+            logger.info(
+                f"Generated scores for all {num_classes} classes for {os.path.basename(image_path)}"
+            )
+            return results_df
 
         except FileNotFoundError:
             logger.error(f"Image file not found: {image_path}")

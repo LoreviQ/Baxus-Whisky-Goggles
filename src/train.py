@@ -50,9 +50,6 @@ if __name__ == "__main__":
         logger.info("Validating the model")
         validate()
     elif args.predict:
-        predict("4510_3.png")
-        predict("17446_2.png")
-        predict("18004_0.png")
         predict("53003_1.png")
     else:
         logger.info("Training the model")
