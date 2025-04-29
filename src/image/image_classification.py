@@ -11,9 +11,14 @@ import time
 import copy
 import logging
 import warnings
-import csv  # Add csv import
-import pandas as pd  # Add pandas import
-import matplotlib.pyplot as plt  # Add matplotlib import
+import csv
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    ConfusionMatrixDisplay,
+)
 
 # --- Configuration ---
 DEFAULTS = {
@@ -36,7 +41,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="PIL.Image")
 
 
 class ImageClassifier:
-    def __init__(self, dataset_path, pickle_path, config=DEFAULTS):
+    def __init__(self, dataset_path, pickle_path, model_path=None, config=DEFAULTS):
         """
         Initialize the ImageClassifier with the dataset path and pickle path.
         """
@@ -45,6 +50,8 @@ class ImageClassifier:
         self._load_data(config)
         self._load_model()
         self._set_classifier(config)
+        if model_path:
+            self._load_trained_model(model_path)
 
     def _load_data(self, config):
         # Training data
@@ -79,7 +86,7 @@ class ImageClassifier:
         )
 
         # Validation data
-        val_transforms = transforms.Compose(
+        self.val_transforms = transforms.Compose(
             [
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
@@ -90,7 +97,7 @@ class ImageClassifier:
                 ),
             ]
         )
-        val_dataset = ImageFolder(root=self.dataset_path, transform=val_transforms)
+        val_dataset = ImageFolder(root=self.dataset_path, transform=self.val_transforms)
         self.val_loader = DataLoader(
             val_dataset,
             batch_size=config["batch_size"],
@@ -111,7 +118,6 @@ class ImageClassifier:
         logger.info(f"Saved class mapping to {self.pickle_path}")
 
     def _load_model(self):
-        # Load the model
         model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
         num_ftrs = model.classifier[-1].in_features
         model.classifier[-1] = torch.nn.Linear(num_ftrs, NUM_CLASSES)
@@ -232,6 +238,28 @@ class ImageClassifier:
                 logger.info(f"\t{name} (Shape: {param.shape})")
                 total_trainable_params += param.numel()
         logger.info(f"Total Trainable Parameters: {total_trainable_params:,}")
+
+    def _load_trained_model(self, model_path):
+        if not hasattr(self, "model"):
+            logger.error("Model architecture not initialized. Cannot load weights.")
+            return False
+        if not hasattr(self, "device"):
+            logger.error("Device not set. Cannot load weights.")
+            return False
+        try:
+            state_dict = torch.load(model_path, map_location=self.device)
+            self.model.load_state_dict(state_dict)
+            self.model.eval()
+            logger.info(
+                f"Successfully loaded trained model weights from {model_path} and set to eval mode."
+            )
+            return True
+        except FileNotFoundError:
+            logger.error(f"Model file not found: {model_path}")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to load model weights from {model_path}: {e}")
+            return False
 
     def load_class_mapping(self):
         """
@@ -368,6 +396,99 @@ class ImageClassifier:
         self.model.load_state_dict(best_model_wts)
         # Return model and path to accuracy log instead of history dict
         return self.model, accuracy_log_path
+
+    def validate(self, results_dir="results"):
+        """
+        Validate the model on the validation dataset.
+        """
+        logger.info("Starting model validation...")
+        if not hasattr(self, "model") or not hasattr(self, "val_loader"):
+            logger.error("Model or validation loader not initialized. Cannot validate.")
+            return
+
+        # Ensure results directory exists
+        os.makedirs(results_dir, exist_ok=True)
+
+        # Load class mapping
+        _, idx_to_class = self.load_class_mapping()
+        if not idx_to_class:
+            logger.error(
+                "Failed to load class mapping. Cannot proceed with validation."
+            )
+            return
+        class_names = [idx_to_class[i] for i in range(len(idx_to_class))]
+
+        # Set model to evaluation mode
+        self.model.eval()
+
+        all_preds = []
+        all_labels = []
+
+        logger.info("Running predictions on validation set...")
+        with torch.no_grad():
+            for inputs, labels in self.val_loader:
+                inputs = inputs.to(self.device)
+                labels = labels.to(self.device)
+
+                outputs = self.model(inputs)
+                _, preds = torch.max(outputs, 1)
+
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+
+        if not all_labels or not all_preds:
+            logger.error("No predictions were generated from the validation set.")
+            return
+
+        logger.info(f"Generated {len(all_preds)} predictions.")
+
+        # --- Calculate and Print Metrics ---
+        logger.info("\n--- Classification Report ---")
+        try:
+            # Use target_names if few classes, otherwise None
+            target_names_display = class_names if len(class_names) <= 50 else None
+            report = classification_report(
+                all_labels,
+                all_preds,
+                target_names=target_names_display,
+                digits=3,
+                zero_division=0,
+            )
+            print(report)
+            logger.info("Classification report generated.")
+            report_path = os.path.join(results_dir, "classification_report.txt")
+            with open(report_path, "w") as f:
+                f.write(report)
+            logger.info(f"Classification report saved to {report_path}")
+
+        except Exception as e:
+            logger.error(f"Error generating classification report: {e}")
+
+        # --- Generate and Save Confusion Matrix ---
+        logger.info("\n--- Generating Confusion Matrix ---")
+        try:
+            cm = confusion_matrix(
+                all_labels, all_preds, labels=list(range(len(class_names)))
+            )
+
+            # Plotting (may be large for 500 classes)
+            display_labels = class_names if len(class_names) <= 50 else None
+            fig, ax = plt.subplots(figsize=(20, 20))
+            disp = ConfusionMatrixDisplay(
+                confusion_matrix=cm, display_labels=display_labels
+            )
+            disp.plot(
+                cmap=plt.cm.Blues, ax=ax, xticks_rotation="vertical", values_format="d"
+            )
+            plt.title("Confusion Matrix")
+            plt.tight_layout()
+            cm_path = os.path.join(results_dir, "confusion_matrix.png")
+            plt.savefig(cm_path)
+            plt.close(fig)
+            logger.info(f"Confusion matrix plot saved to {cm_path}")
+        except Exception as e:
+            logger.error(f"Could not generate or save confusion matrix plot: {e}")
+        logger.info("Validation finished.")
 
 
 # --- Plotting Function (Outside the class) ---
