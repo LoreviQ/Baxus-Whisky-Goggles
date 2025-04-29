@@ -9,7 +9,7 @@ import pandas as pd
 from image.image_classification import ImageClassifier
 from flask import Flask, request, jsonify
 from io import BytesIO
-import requests
+from flask_cors import CORS
 
 dataset_path = os.path.join(os.path.dirname(__file__), "..", "data", "training_images")
 pickle_path = os.path.join(os.path.dirname(__file__), "..", "data", "mapping_data.pkl")
@@ -182,38 +182,30 @@ def main():
 
     # Set up Flask app
     app = Flask(__name__)
+    CORS(app)
 
     @app.route("/predict", methods=["POST"])
     def handle_predict():
         logger.info("Received request for /predict")
-        # Expect JSON payload with 'image_url'
-        if not request.is_json:
-            logger.warning("Request is not JSON.")
-            return jsonify({"error": "Request must be JSON"}), 400
+        # Check if an image file is present in the form data
+        if "image" not in request.files:
+            logger.warning("No 'image' file found in the request form data.")
+            return jsonify({"error": "'image' file is required in form data"}), 400
 
-        data = request.get_json()
-        if "image_url" not in data:
-            logger.warning("No 'image_url' found in the request JSON.")
-            return jsonify({"error": "'image_url' is required"}), 400
+        file = request.files["image"]
 
-        image_url = data["image_url"]
-        logger.info(f"Received image URL: {image_url}")
+        # Check if the file is empty
+        if file.filename == "":
+            logger.warning("Received an empty file part.")
+            return jsonify({"error": "No selected file"}), 400
+
+        logger.info(f"Received image file: {file.filename}")
 
         try:
-            # Fetch image from URL
-            response = requests.get(image_url, stream=True, timeout=10)  # Add timeout
-            response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-
-            # Check content type (optional but recommended)
-            content_type = response.headers.get("content-type")
-            if not content_type or not content_type.startswith("image/"):
-                logger.warning(f"URL content type is not image: {content_type}")
-                return jsonify({"error": "URL does not point to a valid image"}), 400
-
-            # Read image content
-            img_bytes = response.content
+            # Read image content from the file stream
+            img_bytes = file.read()
             image = Image.open(BytesIO(img_bytes)).convert("RGB")  # Ensure RGB
-            logger.info(f"Image from URL '{image_url}' loaded successfully.")
+            logger.info(f"Image file '{file.filename}' loaded successfully.")
 
             # Perform prediction
             best_match = predict_image(image, loader, image_classifier, logger)
@@ -233,25 +225,20 @@ def main():
                 logger.warning("Prediction returned no results.")
                 return jsonify({"error": "Could not determine the best match"}), 404
 
-        except requests.exceptions.RequestException as e:
-            logger.error(
-                f"Error fetching image from URL {image_url}: {e}", exc_info=True
-            )
-            return jsonify({"error": f"Could not fetch image from URL: {e}"}), 400
         except UnidentifiedImageError:  # Catch PIL errors for non-image data
             logger.error(
-                f"Could not identify image from URL {image_url}. Content might not be an image.",
+                f"Could not identify image from file '{file.filename}'. Content might not be a valid image.",
                 exc_info=True,
             )
             return (
                 jsonify(
-                    {"error": "Failed to process image from URL. Invalid image format."}
+                    {"error": "Failed to process image file. Invalid image format."}
                 ),
                 400,
             )
         except Exception as e:
             logger.error(
-                f"Error processing image from URL {image_url}: {e}", exc_info=True
+                f"Error processing image file '{file.filename}': {e}", exc_info=True
             )
             return jsonify({"error": "Internal server error during prediction"}), 500
 
