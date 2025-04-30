@@ -138,8 +138,6 @@ Want to experiment or train the model on your own dataset? Here's how:
     └── utils/        # Shared utilities
 ```
 
-_(Structure might need slight adjustment based on actual code)_
-
 **Data Analysis Geeks:** Check out the `results/` directory for training logs (`accuracy_log.csv`) and accuracy plots (`accuracy_plot.png`)!
 
 ## Hackathon Deliverables Checklist
