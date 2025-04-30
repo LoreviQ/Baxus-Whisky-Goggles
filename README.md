@@ -18,8 +18,8 @@ This application combines computer vision and OCR to identify whisky bottles, ai
 - **Image Preprocessing & Enhancement:** Includes steps for cleaning up images before analysis.
 - **(Optional) Upscaling:** Support for Real-ESRGAN to improve low-resolution images.
 - **BOB Integration (Cross-Track Fun!):** BOB, from the AI Agent track, "wears" the goggles and performs the classification. You can interact with the Whisky Goggles via:
-  - The BAXATHON submission website.
-  - The BAXATHON Chrome Extension (requires the API to be running locally).
+  - The BAXATHON submission website: [baxathon.oliver.tj/whiskeygoggles](https://baxathon.oliver.tj/whiskeygoggles)
+  - The BAXATHON Chrome Extension (requires the API to be running locally): [baxathon.oliver.tj/honeybarrel](https://baxathon.oliver.tj/honeybarrel)
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ This application combines computer vision and OCR to identify whisky bottles, ai
     # Make sure tesseract is added to your system's PATH
     ```
 
-4.  **Download Models:** Ensure the necessary model files (`whiskey_goggles.pth` and `RealESRGAN_x4plus.pth`) are present in the `models/` directory. _(You might need to provide instructions here if they aren't included directly in the repo, e.g., download link)_
+4.  **Download Models:** Ensure the necessary model files (`whiskey_goggles.pth` and `RealESRGAN_x4plus.pth`) are present in the `models/` directory.
 
 ## Usage - Let BOB Scan!
 
@@ -94,7 +94,30 @@ This application combines computer vision and OCR to identify whisky bottles, ai
   ```bash
   pytest
   ```
-- _(Add any other relevant development notes here, e.g., training script usage)_
+
+### Interested in Training Your Own Model? 🤔
+
+Want to experiment or train the model on your own dataset? Here's how:
+
+1.  **Prepare Your Data:** Organize your training images in a directory structure similar to `data/training_images/`, where each subdirectory is a class label.
+2.  **Update Paths in `src/train.py`:**
+    - Set `dataset_path` to the location of your training images.
+    - Set `pickle_path` to where you want the label mapping data (`mapping_data.pkl`) to be saved.
+3.  **Train the Model:**
+    ```bash
+    python src/train.py
+    ```
+    This will train the model using the data specified in `dataset_path` and save the best model checkpoints in the `models/` directory (named like `whiskey_goggles_efficientnet_b0_best_epoch<N>.pth`). It will also save the label mapping to `pickle_path`.
+4.  **Test Your Trained Model:**
+    - **Validation:** To evaluate your model's performance on the validation set (part of your `dataset_path`), update `model_path` in `src/train.py` to point to your desired trained model checkpoint (e.g., `models/whiskey_goggles_efficientnet_b0_best_epoch<N>.pth`) and run:
+      ```bash
+      python src/train.py --validate
+      ```
+    - **Prediction:** To test prediction on a specific image, update `model_path` and `predict_path` (the directory containing test images) in `src/train.py`. Then run:
+      ```bash
+      # Note: You might need to modify the hardcoded filename in train.py's predict function
+      python src/train.py --predict
+      ```
 
 ## Project Structure
 
@@ -111,12 +134,8 @@ This application combines computer vision and OCR to identify whisky bottles, ai
     └── utils/        # Shared utilities
 ```
 
-_(Structure might need slight adjustment based on actual code)_
-
 ## Hackathon Deliverables Checklist
 
 - [x] Working label scanning and bottle identification system (via API)
 - [x] Code repository (You're looking at it!)
 - [x] Implementation details and instructions (This README)
-
----
