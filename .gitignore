@@ -3,4 +3,7 @@ __pycache__
 .pytest_cache
 .mypy_cache
 data
-models
+models/
+!models/whiskey_goggles.pth
+!models/RealESRGAN_x4plus.pth
+results/

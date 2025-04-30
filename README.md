@@ -62,7 +62,7 @@ This application combines computer vision and OCR to identify whisky bottles, ai
     # Make sure tesseract is added to your system's PATH
     ```
 
-4.  **Download Models:** Ensure the necessary model files (`whiskey_goggles.pth` and `RealESRGAN_x4plus.pth`) are present in the `models/` directory.
+4.  **Download Models:** Ensure the necessary model files (`whiskey_goggles.pth` and `RealESRGAN_x4plus.pth`) are present in the `models/` directory. The main classification model used by the API is `whiskey_goggles.pth`, which was trained as part of this project.
 
 ## Usage - Let BOB Scan!
 
@@ -122,9 +122,13 @@ Want to experiment or train the model on your own dataset? Here's how:
 ## Project Structure
 
 ```
-├── data/               # Dataset files, processed images, etc.
-├── models/             # Trained models (EfficientNet, RealESRGAN)
-├── results/            # Experiment results, logs
+├── data/               # Dataset files, processed images, etc. (Ignored by git)
+├── models/             # Trained models (EfficientNet, RealESRGAN) (Mostly ignored by git, except key models)
+│   ├── whiskey_goggles.pth # The primary trained model for the API
+│   └── RealESRGAN_x4plus.pth # Upscaling model
+├── results/            # Experiment results, logs (Ignored by git)
+│   └── accuracy_log.csv  # Training accuracy log
+│   └── accuracy_plot.png # Plot of training accuracy
 ├── scripts/            # Utility scripts (e.g., data processing)
 └── src/                # Main source code
     ├── api/          # Flask API endpoints (if separated)
@@ -133,6 +137,10 @@ Want to experiment or train the model on your own dataset? Here's how:
     ├── ocr/          # OCR processing logic
     └── utils/        # Shared utilities
 ```
+
+_(Structure might need slight adjustment based on actual code)_
+
+**Data Analysis Geeks:** Check out the `results/` directory for training logs (`accuracy_log.csv`) and accuracy plots (`accuracy_plot.png`)!
 
 ## Hackathon Deliverables Checklist
 
